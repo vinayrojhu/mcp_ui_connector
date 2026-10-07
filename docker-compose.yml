@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: adaptive
+      POSTGRES_PASSWORD: adaptive
+      POSTGRES_DB: adaptive
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adaptive"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://adaptive:adaptive@postgres:5432/adaptive
+      ALLOWED_DOMAINS: localhost,127.0.0.1,mock-app
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [backend]
+  mock-app:
+    image: nginx:alpine
+    volumes: ["./mock_apps:/usr/share/nginx/html:ro"]
+    ports: ["8080:80"]
+volumes:
+  postgres_data:
